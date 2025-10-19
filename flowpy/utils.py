@@ -12,29 +12,49 @@ try:
 except Exception:
     RichHandler = None
 
-# requires logconf.ini in the main script directory
-# [debug]
-# mymodule=
-### so use = sign to fit into configparser ini format
-config = configparser.ConfigParser()
-ini_path = Path('logconf.ini')
-if not ini_path.exists():
-    print('path not found: %s', ini_path)
-    sys.exit()
+# Lazy config loader: returns a dict with section dicts, no globals created
+_config_cache = None
 
-config.read(ini_path)
-loglevel_error  = config['error']
-loglevel_warning = config['warning']
-loglevel_debug  = config['debug']
-loglevel_info   = config['info']
-off = []
+def _load_config():
+    """Return a dict-like mapping of config sections (debug, info, warning, error).
 
+    Tries PROJECT_DIR then CWD. Returns empty dicts if no file found.
+    """
+    global _config_cache
+    if _config_cache is not None:
 
-lld = loglevel_debug
-lli = loglevel_info
-lle = loglevel_error
-llw = loglevel_warning
-#print(lld)
+        return _config_cache
+    cfg = configparser.ConfigParser()
+    candidates = []
+    try:
+        pd = _resolve_project_dir()
+        candidates.append(Path(pd) / 'logconf.ini')
+    except Exception:
+        pass
+    candidates.append(Path('logconf.ini'))
+
+    for p in candidates:
+        try:
+            if p.exists():
+                print('using log config file:', p)
+                cfg.read(p)
+                def sec(name):
+                    try:
+                        return list(cfg[name])
+                    except Exception:
+                        return []
+                _config_cache = {
+                    'debug': sec('debug'),
+                    'info': sec('info'),
+                    'warning': sec('warning'),
+                    'error': sec('error'),
+                }
+                return _config_cache
+        except Exception:
+            continue
+    print(_config_cache)
+    _config_cache = {'debug': [], 'info': [], 'warning': [], 'error': []}
+    return _config_cache
 
 
 def _resolve_project_dir():
@@ -53,6 +73,7 @@ def _resolve_project_dir():
     try:
         import env as _env2
         project_dir = Path(_env2.project_dir)
+        print("Resolved PROJECT_DIR from env module:", project_dir)
         return project_dir
     except Exception:
         pass
@@ -62,11 +83,13 @@ def _resolve_project_dir():
         if val:
             try:
                 project_dir = Path(val)
+                print("Resolved PROJECT_DIR from env var", v, ":", project_dir)
                 return project_dir
             except Exception:
                 continue
     # fallback to cwd
     project_dir = Path.cwd()
+    print("Warning: could not resolve PROJECT_DIR, using CWD:", project_dir)
     return project_dir
 
 
@@ -93,14 +116,22 @@ def setup_logger(name, log_name, level=None):
             log_file = str(Path(log_name))
     except Exception:
         log_file = None
+    #print('log_file:', log_file)
 
+    # ensure config is loaded (lazy) and use local maps (no global mapping vars)
+    cfg = _load_config()
+    debug_map = cfg.get('debug', [])
+    #print(debug_map)
+    info_map = cfg.get('info', [])
+    warn_map = cfg.get('warning', [])
+    err_map = cfg.get('error', [])
     handlers = []
 
+    dfmt = '%H:%M:%S'
+    formatter = logging.Formatter('%(asctime)s, %(lineno)d/%(funcName)s, "%(message)s"', datefmt=dfmt)
     # Try to create a FileHandler if possible
     if log_file:
         # Formatter
-        dfmt = '%H:%M:%S'
-        formatter = logging.Formatter('%(asctime)s, %(lineno)d/%(funcName)s, "%(message)s"', datefmt=dfmt)
 
         try:
             log_dir = Path(log_file).parent
@@ -128,17 +159,18 @@ def setup_logger(name, log_name, level=None):
 
     logger = logging.getLogger(name)
 
-    # Determine level using the (eagerly loaded) config
+    # Determine level using the (lazy-loaded) config maps
     if not level:
         try:
             level = logging.INFO
-            if (name in lld):
+            #print('name:', name, 'log_id:', log_id, 'log_name:', log_name)
+            if (name in debug_map):
                 level = logging.DEBUG
-            if isinstance(log_name, str) and ((log_id in lld) or (log_name[:-4] in lld)):
+            if isinstance(log_name, str) and ((log_id in debug_map) or (log_name[:-4] in debug_map)):
                 level = logging.DEBUG
-            elif log_id in lli or name in lli:
+            elif log_id in info_map or name in info_map:
                 level = logging.INFO
-            elif log_id in llw or name in llw:
+            elif log_id in warn_map or name in warn_map:
                 level = logging.WARNING
         except Exception:
             level = logging.INFO
