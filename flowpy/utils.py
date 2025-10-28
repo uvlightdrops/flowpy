@@ -128,7 +128,11 @@ def setup_logger(name, log_name, level=None):
     handlers = []
 
     dfmt = '%H:%M:%S'
+    rich_dfmt = '%H:%M:%S'
     formatter = logging.Formatter('%(asctime)s, %(lineno)d/%(funcName)s, "%(message)s"', datefmt=dfmt)
+    # Rich-specific formatter: more compact, show level first and then time/function
+    #rich_formatter = logging.Formatter('%(levelname)s %(asctime)s, %(lineno)d/%(funcName)s: %(message)s', datefmt=rich_dfmt)
+    rich_formatter = logging.Formatter('%(asctime)s, %(lineno)d/%(funcName)s: %(message)s', datefmt=rich_dfmt)
     # Try to create a FileHandler if possible
     if log_file:
         # Formatter
@@ -146,8 +150,10 @@ def setup_logger(name, log_name, level=None):
     # Add rich or stream handler as fallback
     if RichHandler:
         try:
+            # Use a dedicated formatter for RichHandler so the console output is
+            # more compact and shows the log level up front.
             handler_r = RichHandler()
-            handler_r.setFormatter(formatter)
+            handler_r.setFormatter(rich_formatter)
             handlers.append(handler_r)
         except Exception:
             pass
