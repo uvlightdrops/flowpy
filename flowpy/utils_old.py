@@ -25,13 +25,16 @@ def _load_config():
         return _config_cache
 
     cfg = configparser.ConfigParser()
+    cfg.optionxform = str  # preserve case
     candidates = []
     try:
         pd = _resolve_project_dir()
+        #print("project dir: ", pd)
         candidates.append(Path(pd) / 'logconf.ini')
     except Exception:
         pass
-    candidates.append(Path('logconf.ini'))
+    # not sure if that was smart by copilot
+    #candidates.append(Path('logconf.ini'))
 
     for p in candidates:
         try:
@@ -40,6 +43,7 @@ def _load_config():
                 cfg.read(p)
                 def sec(name):
                     try:
+                        print(list(cfg[name]))
                         return list(cfg[name])
                     except Exception:
                         return []

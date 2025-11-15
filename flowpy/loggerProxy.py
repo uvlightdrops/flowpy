@@ -23,6 +23,8 @@ from typing import Optional
 from flowpy.utils_old import _resolve_project_dir, _load_config
 from pathlib import Path
 
+from pygments.filters import get_filter_by_name
+
 
 class LoggerProxy:
     """Proxy that lazily initializes an actual Logger and its handlers.
@@ -50,10 +52,11 @@ class LoggerProxy:
 
     def get_formatter(self):
         #fmt = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-        fmt = '%(asctime)s %(lineno)d/%(funcName)s  %(name)s: %(message)s'
+        #fmt = '%(asctime)s %(lineno)d/%(funcName)s  %(name)s: %(message)s'
+        fmt = '%(asctime)s : %(message)s'
         if self._fmt:
             fmt = self._fmt
-        return logging.Formatter(fmt)
+        return logging.Formatter(fmt, datefmt='%M:%S')
 
 
     def _ensure_real(self) -> Logger:
@@ -97,7 +100,8 @@ class LoggerProxy:
             # The proxy manages its own handlers; do not propagate by default.
             logger.propagate = False
 
-            formatter = logging.Formatter(self._fmt)
+            formatter = self.get_formatter()
+            #formatter = logging.Formatter(self._fmt)
 
             # If a logfile was requested, try to create its directory and handler.
             if self._logfile:
@@ -107,18 +111,7 @@ class LoggerProxy:
                 abs_log_path.mkdir(parents=True, exist_ok=True)
                 abs_log_file = abs_log_path.joinpath(self._logfile)
                 try:
-                    if self._maxBytes and self._maxBytes > 0:
-                        from logging.handlers import RotatingFileHandler
-
-                        fh = RotatingFileHandler(
-                            self._logfile,
-                            maxBytes=self._maxBytes,
-                            backupCount=self._backupCount,
-                            encoding=self._encoding,
-                        )
-                    else:
-                        fh = logging.FileHandler(abs_log_file, encoding=self._encoding)
-
+                    fh = logging.FileHandler(abs_log_file, encoding=self._encoding)
                     fh.setFormatter(formatter)
                     logger.addHandler(fh)
                 except Exception:
