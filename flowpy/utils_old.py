@@ -39,11 +39,11 @@ def _load_config():
     for p in candidates:
         try:
             if p.exists():
-                print('using log config file:', p)
+                #print('using log config file:', p)
                 cfg.read(p)
                 def sec(name):
                     try:
-                        print(list(cfg[name]))
+                        #print(list(cfg[name]))
                         return list(cfg[name])
                     except Exception:
                         return []

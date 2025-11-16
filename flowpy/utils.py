@@ -19,7 +19,7 @@ import os
 import re
 
 def get_default_log_format():
-        fmt = '%(asctime)s %(lineno)d/%(funcName)s  %(name)s: %(message)s'
+        fmt = '%(asctime)s %(lineno)d/%(funcName)s: %(message)s'
         #fmt = "%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(funcName)s | %(message)s"
         return (fmt)
 
@@ -61,7 +61,7 @@ def setup_logger(name, log_file, level=None, fmt=None):
     logger.setLevel(level)
 
     fmt = fmt or get_default_log_format()
-    formatter = logging.Formatter(fmt)
+    formatter = logging.Formatter(fmt, datefmt='%M:%S')
 
     if stream:
         stream_handler = logging.StreamHandler(sys.stdout)
